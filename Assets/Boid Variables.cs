@@ -25,7 +25,7 @@ public class GlobalVariables
     public static float barrierY = 250f;
     public static float barrierZ = 250f;
 
-    // Constants for bboids
+    // Constants for boids
     public static float separationDistance = 5f;
     public static float alignmentPower = 1000f; // Smaller is more powerful
     public static float boidReactionDist = 25f;
