@@ -1,0 +1,14 @@
+# Force C# detection (usually not needed, but explicit)
+*.cs linguist-language=C#
+
+# Mark Mathematica notebooks (or other large files) as generated
+*.nb linguist-generated=true
+
+# Or exclude entirely
+*.nb linguist-detectable=false
+
+# If there are other extensions skewing stats, mark them too
+*.m linguist-generated=true
+*.txt linguist-generated=true
+# Exclude vendor or library folders
+/path/to/vendor/** linguist-vendored=true
