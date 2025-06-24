@@ -21,13 +21,13 @@ public class GlobalVariables
     public static List<Boid> boidList = new List<Boid>(); // List of all the boids data in the simulation
 
     // Constants to show the boundary of where the boids interact
-    public static float barrierX = 250f;
-    public static float barrierY = 250f;
-    public static float barrierZ = 250f;
+    public static float barrierX = 200f;
+    public static float barrierY = 200f;
+    public static float barrierZ = 200f;
 
     // Constants for boids
     public static float separationDistance = 5f;
     public static float alignmentPower = 1000f; // Smaller is more powerful
-    public static float boidReactionDist = 25f;
+    public static float boidReactionDist = 30f;
     public static float maxSpeed = 100f;
 }
