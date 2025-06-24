@@ -3,16 +3,16 @@ Real-time Unity flocking simulation: boids that steer by separation, alignment, 
 
 
 
-Boids pseudocode can be found here (made by Conrad Parker):
+**Boids pseudocode can be found here (made by Conrad Parker):**
 
 https://vergenet.net/~conrad/boids/pseudocode.html
 
-More info on boids:
+**More info on boids:**
 
 https://cs.stanford.edu/people/eroberts/courses/soco/projects/2008-09/modeling-natural-systems/boids.html#:~:text=Boids%20is%20an%20artificial%20life,behavior%20of%20flocks%20of%20birds.
 
 
-Currently added:
+**Currently added:**
 
 Rules 1 - 3
 
@@ -30,7 +30,7 @@ Paramters - currently only maxSpeed and all the other constants to control the 3
 
 
 
-To be added in the future:
+**To be added in the future:**
 
 Ray casting to allow boids to interact with loads of different environmnts
 
