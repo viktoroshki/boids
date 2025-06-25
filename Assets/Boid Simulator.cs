@@ -1,121 +1,69 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
 public class Boidsimulation : MonoBehaviour
 {
+    
+    // Compute shader stuff
+    public ComputeShader shader;
+    int kernelHandle;
+    ComputeBuffer boidsBuffer;
+    int groupSizeX;
+    int numOfBoids;
+    RenderParams renderParams;
+    GraphicsBuffer argsBuffer;
+
+    public static Mesh boidMesh;
+    public Material boidMaterial;
+
+    void Start()
+    {
+        kernelHandle = shader.FindKernel("CSMain");
+
+        uint x;
+        shader.GetKernelThreadGroupSizes(kernelHandle, out x, out _, out _);
+        groupSizeX = Mathf.CeilToInt(GlobalVariables.boidNumber / x);
+        numOfBoids = groupSizeX * (int)x;
+
+        InitShader();
+
+        renderParams = new RenderParams(boidMaterial);
+        renderParams.worldBounds = new Bounds(Vector3.zero, new Vector3(GlobalVariables.barrierX, GlobalVariables.barrierY, GlobalVariables.barrierZ));
+    }
+
     void Update()
     {
-        // Handles individual boid logic (staying in the box, updating movement)
-        foreach (Boid boid in GlobalVariables.boidList)
-        {
-            moveBoid(boid);
-            keepBoidInBox(boid);
-        }
+        shader.SetFloat("time", Time.time);
+        shader.SetFloat("deltaTime", Time.deltaTime);
 
-        // Handle interactiosn between boids
-        seperation();
-        alignment();
-        cohesion();
+        shader.Dispatch(this.kernelHandle, groupSizeX, 1, 1);
+
+        Graphics.RenderMeshIndirect(renderParams, boidMesh, argsBuffer);
     }
 
-    private void moveBoid(Boid boid)
+    void InitShader()
     {
-        // Limit boid's speed
-        if (boid.velocity.magnitude > GlobalVariables.maxSpeed)
-        {
-            boid.velocity = boid.velocity.normalized * GlobalVariables.maxSpeed;
-        }
+        boidsBuffer = new ComputeBuffer(GlobalVariables.boidNumber, 7 * sizeof(float));
+        boidsBuffer.SetData(GlobalVariables.boidArray);
 
-        // Set the boids new position
-        boid.position += boid.velocity * Time.deltaTime;
-        boid.visual.transform.position = boid.position;
+        // Don't quite understand this part quite yet!!!
+        argsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
+        GraphicsBuffer.IndirectDrawIndexedArgs[] data = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+        data[0].indexCountPerInstance = GlobalVariables.boidMesh.GetIndexCount(0);
+        data[0].instanceCount = (uint)GlobalVariables.boidNumber;
+        argsBuffer.SetData(data);
 
-        // Set the boids rotation
-        Quaternion offset = Quaternion.Euler(90f, 0f, 0f); // offset due to the tip of the ocne being on the y-axis
-        boid.visual.transform.rotation = Quaternion.LookRotation(boid.velocity.normalized) * offset;
-    }
+        shader.SetFloat("barrierX", GlobalVariables.barrierX);
+        shader.SetFloat("barrierY", GlobalVariables.barrierY);
+        shader.SetFloat("barrierZ", GlobalVariables.barrierZ);
+        shader.SetFloat("seperationDistance", GlobalVariables.separationDistance);
+        shader.SetFloat("alignmentPower", GlobalVariables.alignmentPower);
+        shader.SetFloat("boidReactionDist", GlobalVariables.boidReactionDist);
+        shader.SetFloat("maxSpeed", GlobalVariables.maxSpeed);
+        shader.SetBuffer(this.kernelHandle, "boidsBuffer", boidsBuffer);
 
-    private void keepBoidInBox(Boid boid)
-    {
-        // Teleports boid to the other side of the box if it reaches the barrier
-        // x-axis
-        if (boid.position.x > GlobalVariables.barrierX) { boid.position.x = 0f; }
-        else if (boid.position.x < 0) { boid.position.x = GlobalVariables.barrierX; }
-        // y-axis
-        if (boid.position.y > GlobalVariables.barrierY) { boid.position.y = 0f; }
-        else if (boid.position.y < 0) { boid.position.y = GlobalVariables.barrierY; }
-        // z-axis
-        if (boid.position.z > GlobalVariables.barrierZ) { boid.position.z = 0f; }
-        else if (boid.position.z < 0) { boid.position.z = GlobalVariables.barrierZ; }
-
-    }
-
-    private bool cannotCompare(Boid boidA, Boid boidB)
-    {
-        // Skip if the boid is comparing to itself or the other boid is outside it's reaction distance
-        return ((boidA == boidB) || (boidA.position - boidB.position).magnitude < GlobalVariables.boidReactionDist);
-    }
-
-    private void seperation()
-    {
-        foreach (Boid boidA in GlobalVariables.boidList)
-        {
-            foreach (Boid boidB in GlobalVariables.boidList)
-            {
-                if (cannotCompare(boidA, boidB)) { continue; }
-
-                // Now we apply the seperation rule
-                Vector3 relativePosition = boidB.position - boidA.position;
-                if (relativePosition.magnitude < GlobalVariables.separationDistance)
-                {
-                    boidA.velocity -= relativePosition;
-                }
-            }
-        }
-    }
-
-    private void alignment()
-    {
-        foreach (Boid boidA in GlobalVariables.boidList)
-        {
-            int total = 0;
-            Vector3 velocitySum = Vector3.zero;
-
-            foreach (Boid boidB in GlobalVariables.boidList)
-            {
-                if (cannotCompare(boidA, boidB)) { continue; }
-
-                // Now we apply the seperation rule
-                total++;
-                velocitySum += boidB.velocity;
-            }
-
-            velocitySum /= (total - 1);
-            velocitySum -= boidA.velocity;
-            velocitySum /= GlobalVariables.alignmentPower;
-
-            boidA.velocity += velocitySum;
-        }
-    }
-
-    private void cohesion()
-    {
-        foreach (Boid boidA in GlobalVariables.boidList)
-        {
-            int total = 0;
-            Vector3 percievedCOM = Vector3.zero; // COM = Centre Of Mass
-
-            foreach (Boid boidB in GlobalVariables.boidList)
-            {
-                if (cannotCompare(boidA, boidB)) { continue; }
-
-                total++;
-                percievedCOM += boidB.position;
-            }
-
-            percievedCOM /= total;
-
-            boidA.velocity += (percievedCOM - boidA.position) / 100;
-        }
+        boidMaterial.SetBuffer("boidsBuffer", boidsBuffer);
     }
 }
+
