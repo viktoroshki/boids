@@ -3,7 +3,7 @@ Real-time Unity flocking simulation: boids that steer by separation, alignment, 
 
 
 
-**Boids pseudocode can be found here (made by Conrad Parker):**
+**Boids pseudocode can be found here:**
 
 https://vergenet.net/~conrad/boids/pseudocode.html
 
