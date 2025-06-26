@@ -17,6 +17,7 @@ public struct Boid
 public class GlobalVariables
 {
     public static Boid[] boidArray;
+    public static Transform[] transformArray; // Where all the visuals are in the scene
 
     // Constants to show the boundary of where the boids interact
     public static float barrierX = 200f;
@@ -30,7 +31,7 @@ public class GlobalVariables
     public static float maxSpeed = 100f;
 
     // Spawn parameters:
-    public static int boidNumber = 250;
+    public static int boidNumber = 10000;
     public static float spawnMinSpeed = 75f;
     public static float spawnMaxSpeed = 100f;
 }

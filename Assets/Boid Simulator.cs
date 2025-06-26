@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Net;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -6,64 +7,69 @@ public class Boidsimulation : MonoBehaviour
 {
     
     // Compute shader stuff
-    public ComputeShader shader;
+    public ComputeShader computeShader;
     int kernelHandle;
     ComputeBuffer boidsBuffer;
     int groupSizeX;
-    int numOfBoids;
-    RenderParams renderParams;
-    GraphicsBuffer argsBuffer;
-
-    public static Mesh boidMesh;
-    public Material boidMaterial;
 
     void Start()
     {
-        kernelHandle = shader.FindKernel("CSMain");
+        kernelHandle = computeShader.FindKernel("CSMain");
 
         uint x;
-        shader.GetKernelThreadGroupSizes(kernelHandle, out x, out _, out _);
-        groupSizeX = Mathf.CeilToInt(GlobalVariables.boidNumber / x);
-        numOfBoids = groupSizeX * (int)x;
+        computeShader.GetKernelThreadGroupSizes(kernelHandle, out x, out _, out _);
+        groupSizeX = Mathf.CeilToInt(GlobalVariables.boidNumber / (float)x);
 
         InitShader();
-
-        renderParams = new RenderParams(boidMaterial);
-        renderParams.worldBounds = new Bounds(Vector3.zero, new Vector3(GlobalVariables.barrierX, GlobalVariables.barrierY, GlobalVariables.barrierZ));
     }
 
     void Update()
     {
-        shader.SetFloat("time", Time.time);
-        shader.SetFloat("deltaTime", Time.deltaTime);
+        computeShader.SetFloat("deltaTime", Time.deltaTime);
 
-        shader.Dispatch(this.kernelHandle, groupSizeX, 1, 1);
+        computeShader.Dispatch(this.kernelHandle, groupSizeX, 1, 1);
 
-        Graphics.RenderMeshIndirect(renderParams, boidMesh, argsBuffer);
+        boidsBuffer.GetData(GlobalVariables.boidArray); // Fetch the data from the GPU
+
+        moveBoids();
     }
 
     void InitShader()
     {
-        boidsBuffer = new ComputeBuffer(GlobalVariables.boidNumber, 7 * sizeof(float));
+        boidsBuffer = new ComputeBuffer(GlobalVariables.boidNumber, 6 * sizeof(float));
         boidsBuffer.SetData(GlobalVariables.boidArray);
 
-        // Don't quite understand this part quite yet!!!
-        argsBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
-        GraphicsBuffer.IndirectDrawIndexedArgs[] data = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
-        data[0].indexCountPerInstance = GlobalVariables.boidMesh.GetIndexCount(0);
-        data[0].instanceCount = (uint)GlobalVariables.boidNumber;
-        argsBuffer.SetData(data);
+        computeShader.SetFloat("barrierX", GlobalVariables.barrierX);
+        computeShader.SetFloat("barrierY", GlobalVariables.barrierY);
+        computeShader.SetFloat("barrierZ", GlobalVariables.barrierZ);
+        computeShader.SetFloat("separationDistance", GlobalVariables.separationDistance);
+        computeShader.SetFloat("alignmentPower", GlobalVariables.alignmentPower);
+        computeShader.SetFloat("boidReactionDist", GlobalVariables.boidReactionDist);
+        computeShader.SetFloat("maxSpeed", GlobalVariables.maxSpeed);
+        computeShader.SetInt("boidNumber", GlobalVariables.boidNumber);
+        computeShader.SetBuffer(this.kernelHandle, "boidsBuffer", boidsBuffer);
+    }
 
-        shader.SetFloat("barrierX", GlobalVariables.barrierX);
-        shader.SetFloat("barrierY", GlobalVariables.barrierY);
-        shader.SetFloat("barrierZ", GlobalVariables.barrierZ);
-        shader.SetFloat("seperationDistance", GlobalVariables.separationDistance);
-        shader.SetFloat("alignmentPower", GlobalVariables.alignmentPower);
-        shader.SetFloat("boidReactionDist", GlobalVariables.boidReactionDist);
-        shader.SetFloat("maxSpeed", GlobalVariables.maxSpeed);
-        shader.SetBuffer(this.kernelHandle, "boidsBuffer", boidsBuffer);
+    void moveBoids()
+    {
+        for (int i = 0; i < GlobalVariables.boidNumber; i++)
+        {
+            // Set th new positions of the transforms
+            GlobalVariables.transformArray[i].position = GlobalVariables.boidArray[i].position;
 
-        boidMaterial.SetBuffer("boidsBuffer", boidsBuffer);
+            // Set the boids rotation
+            Quaternion offset = Quaternion.Euler(90f, 0f, 0f); // offset due to the tip of the cone being on the y-axis
+            GlobalVariables.transformArray[i].rotation = Quaternion.LookRotation(GlobalVariables.boidArray[i].velocity.normalized) * offset;
+        }
+    }
+
+    void OnDisable()        // or OnDestroy
+    {
+        if (boidsBuffer != null)
+        {
+            boidsBuffer.Release();   // frees VRAM
+            boidsBuffer = null;
+        }
     }
 }
 

@@ -8,8 +8,9 @@ public class BoidSpawner : MonoBehaviour
 
     void Start()
     {
-        // Initialise our array of boids
+        // Initialise our array of boids and transforms
         GlobalVariables.boidArray = new Boid[GlobalVariables.boidNumber];
+        GlobalVariables.transformArray = new Transform[GlobalVariables.boidNumber];
 
         for (int i = 0; i < GlobalVariables.boidNumber; i++)
         {
@@ -20,10 +21,11 @@ public class BoidSpawner : MonoBehaviour
             GameObject boidVisual = Instantiate(preFab, randomPos, Quaternion.identity); // Intialise and spawn in the visual
 
             GlobalVariables.boidArray[i] = new Boid(randomPos, randomVelocity);
+            GlobalVariables.transformArray[i] = boidVisual.transform;
         }
 
         // Turn off the visual of the initial boid visual as we won't use it to simulate anything
-        Destroy(preFab);
+        preFab.SetActive(false);
 
     }
 }
