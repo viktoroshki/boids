@@ -20,9 +20,9 @@ public class GlobalVariables
     public static Transform[] transformArray; // Where all the visuals are in the scene
 
     // Constants to show the boundary of where the boids interact
-    public static float barrierX = 200f;
-    public static float barrierY = 200f;
-    public static float barrierZ = 200f;
+    public static float barrierX = 500f;
+    public static float barrierY = 500f;
+    public static float barrierZ = 500f;
 
     // Constants for boids
     public static float separationDistance = 5f;
