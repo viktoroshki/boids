@@ -1,0 +1,129 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// -----------------------------------
+// Boid data:
+struct Boid
+{
+    float3 position;
+    float3 velocity;
+};
+RWStructuredBuffer<Boid> boidsBuffer; // The array we bound to it in the C# part of the code
+// -----------------------------------
+// Variables:
+float barrierX;
+float barrierY;
+float barrierZ;
+float separationDistance;
+float alignmentPower;
+float boidReactionDist;
+float maxSpeed;
+uint boidNumber;
+
+float deltaTime;
+// -----------------------------------
+
+[numthreads(64, 1, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= boidNumber) // Once the thread index gets past the number of boids exit the compute shader
+    {
+        return;
+    }
+    
+    Boid boidA = boidsBuffer[id.x]; // Get our boid ;)
+    
+    // Initialise some variables that we will need
+    uint total = 0;
+    float3 alignmentVelocitySum = float3(0, 0, 0);
+    float3 percievedCOM = float3(0, 0, 0); // where COM = Centre Of Mass
+    
+    for (uint i = 0; i < boidNumber; i++)
+    {
+        if (i == id.x) // skip the boid from comparing to itself
+        {
+            continue;
+        }
+        
+        Boid boidB = boidsBuffer[i];
+        
+        // If theother boid is outside the boid's view range skip
+        float3 relativePosition = (boidA.position - boidB.position);
+        float magnitude = length(relativePosition);
+        if (magnitude > boidReactionDist)
+        {
+            continue;
+        }
+        
+        total++; // Update the total variable becasue now we know this boid is one of the total
+        
+        // Seperation
+        if (magnitude < separationDistance)
+        {
+            boidA.velocity += relativePosition;
+        }
+
+        // Alignment
+        alignmentVelocitySum += boidB.velocity;
+        
+        // cohesion
+        percievedCOM += boidB.position;
+    }
+
+    if (total > 0) // We don't want to get divide by zero errors
+    {
+        // Finish Alignment calculation
+        alignmentVelocitySum /= (float) total;
+        alignmentVelocitySum -= boidA.velocity;
+        alignmentVelocitySum /= alignmentPower;
+        // Add the final adhesion value
+        boidA.velocity += alignmentVelocitySum;
+        
+        // Finsih cohesion calulations
+        percievedCOM /= (float) total;
+        // Add the final cohesion value
+        boidA.velocity += (percievedCOM - boidA.position) / 100;
+
+    }
+    
+    // Limit boid's speed
+    if (length(boidA.velocity) > maxSpeed)
+    {
+        boidA.velocity = normalize(boidA.velocity) * maxSpeed;
+    }
+    
+    // Update positional data
+    boidA.position += boidA.velocity * deltaTime;
+    
+    // Keep the boid in the predifined box
+    // Teleports boid to the other side of the box if it reaches the barrier
+        // x-axis
+    if (boidA.position.x > barrierX)
+    {
+        boidA.position.x = 0.0;
+    }
+    else if (boidA.position.x < 0)
+    {
+        boidA.position.x = barrierX;
+    }
+        // y-axis
+    if (boidA.position.y > barrierY)
+    {
+        boidA.position.y = 0.0;
+    }
+    else if (boidA.position.y < 0)
+    {
+        boidA.position.y = barrierY;
+    }
+        // z-axis
+    if (boidA.position.z > barrierZ)
+    {
+        boidA.position.z = 0.0;
+    }
+    else if (boidA.position.z < 0)
+    {
+        boidA.position.z = barrierZ;
+    }
+    
+    boidsBuffer[id.x] = boidA; // Update the new boid positions and velocities
+}
